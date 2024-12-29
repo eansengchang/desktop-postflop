@@ -61,16 +61,27 @@
           :is-compare-mode="false"
           @update-hover-content="onUpdateHoverContent"
         />
-
-        <ResultTable
-          style="flex: 3"
-          table-mode="basics"
-          :cards="cards"
-          :selected-spot="selectedSpot"
-          :results="results"
-          :display-player="displayPlayerBasics"
-          :hover-content="basicsHoverContent"
-        />
+        <div style="display: flex; flex-direction: column;">
+          <ResultTable
+            style="flex: 3"
+            table-mode="basics"
+            :cards="cards"
+            :selected-spot="selectedSpot"
+            :results="results"
+            :display-player="displayPlayerBasics"
+            :hover-content="basicsHoverContent"
+          />
+          <FilterTable
+            style="flex: 3"
+            table-mode="basics"
+            :cards="cards"
+            :selected-spot="selectedSpot"
+            :results="results"
+            :display-player="displayPlayerBasics"
+            :hover-content="basicsHoverContent"
+            :current-board="currentBoard"
+          />
+        </div>
       </template>
 
       <template v-else-if="displayMode === 'graphs'">
@@ -154,6 +165,7 @@ import ResultNav from "./ResultNav.vue";
 import ResultMiddle from "./ResultMiddle.vue";
 import ResultBasics from "./ResultBasics.vue";
 import ResultTable from "./ResultTable.vue";
+import FilterTable from "./FilterTable.vue";
 import ResultCompare from "./ResultCompare.vue";
 import ResultGraphs from "./ResultGraphs.vue";
 import ResultChance from "./ResultChance.vue";
