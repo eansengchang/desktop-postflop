@@ -2,7 +2,7 @@
   <div class="flex flex-col w-full border-l border-gray-500 overflow-x-auto">
     <div class="flex shrink-0 h-12 border-b border-gray-500">
       <div class="flex h-full px-4 items-center text-lg font-semibold">
-        Overview
+        Draws Overview
       </div>
 
       <div class="flex h-full ml-auto pr-4 items-center gap-4 snug">
@@ -184,7 +184,7 @@
 
         <tbody>
           <!-- Top empty row -->
-          <tr
+          <!-- <tr
             v-if="emptyBufferTop > 0"
             :style="{
               '--num-rows': emptyBufferTop,
@@ -192,11 +192,11 @@
             }"
           >
             <td :colspan="columns.length"></td>
-          </tr>
+          </tr> -->
 
           <!-- Body -->
           <tr
-            v-for="item in handSummary.filter(r=>r[1].length != 0)"
+            v-for="item in drawSummary.filter(r=>r[1].length != 0)"
             :key="item[0]"
             :class="
               'relative ' 
@@ -313,7 +313,7 @@
           </tr>
 
           <!-- Bottom empty row -->
-          <tr
+          <!-- <tr
             v-if="emptyBufferBottom > 0"
             :style="{
               '--num-rows': emptyBufferBottom,
@@ -321,12 +321,12 @@
             }"
           >
             <td :colspan="columns.length" class="relative row-divider"></td>
-          </tr>
+          </tr> -->
 
           <!-- Spacer -->
-          <tr>
+          <!-- <tr>
             <td :colspan="columns.length" class="relative row-divider"></td>
-          </tr>
+          </tr> -->
         </tbody>
       </table>
     </div>
@@ -362,6 +362,7 @@ import {
 import { save } from "@tauri-apps/api/dialog";
 
 import { Tippy } from "vue-tippy";
+import { s } from "@tauri-apps/api/app-5190a154";
 
 const barWidthListBasics = ["normalized", "full"] as const;
 const contentListBasics = ["percentage", "ev"] as const;
@@ -849,8 +850,6 @@ const onTableScroll = async () => {
   });
 };
 
-const handNames = ['High Card', 'Pair', 'Two Pair', 'Three of a Kind', 'Straight', 'Flush', 'Full House', 'Four of a Kind', 'Straight Flush'].reverse()
-
 const resultsRendered = computed(() => {
   return resultsSorted.value.slice(
     Math.max(emptyBufferTop.value, 0),
@@ -900,59 +899,136 @@ const summary = computed(() => {
   return ret;
 });
 
-const handSummary = computed(() => {
-  let handSummary: any[] = []
-  for(const handName of handNames){
-    handSummary.push([handName, getHandSummary(handName)])
-  }
-  return handSummary
-})
-
-const getHandSummary = (handName: String) => {
+const drawSummary = computed(() => {
+  let drawSummary: any[] = []
+  const drawNames = ['Combo Draw', 'Flush Draw', 'OESD',  'Gutshot', 'No Draw']
 
   const results = resultsFiltered.value;
-  // filter given the handName
-
-  let filterByHandName = (row: number[]) => {
-    // const spot = props.selectedSpot
-
-    // const boardStr = spot.board.map(cardStr)
-    const boardStr = props.currentBoard.map(cardStr)
-    
-    const allCards = [...boardStr, cardStr(row[0] & 0xff), cardStr(row[0] >>> 8)]
-      
-    return Hand.solve(allCards, 'standard', false).name == handName
-    // return "Three of a Kind" == Hand.solve(["2s","2c", "2d"], 'standard', false).name
+  const boardStr = props.currentBoard.map(cardStr)
+  if(boardStr.length == 5){ //river so no need to calculate draws
+    return [["No Draw", summary.value]]
   }
 
-  const handResults = results.filter(filterByHandName)
-  // return []
-  if (!props.results || handResults.length === 0) return [];
+  for(const drawName of drawNames){
+    drawSummary.push([drawName, []])
+  }
 
-  let normalizer = 0;
-  const ret = handResults[0].map(() => 0);
+  for(const row of results){
+    let cards = Array.from({ length: 52 }, (_, i) => i).map(cardStr)
 
-  for (const row of handResults) {
-    const n = row[INDEX_NORMALIZER];
-    normalizer += n;
-    ret[INDEX_WEIGHT] += row[INDEX_WEIGHT];
-    for (let i = INDEX_EQUITY; i < row.length; ++i) {
-      ret[i] += row[i] * n;
+    const holeCards = [cardStr(row[0] & 0xff), cardStr(row[0] >>> 8)]
+
+    let remainingCards = cards.filter(c => ![...boardStr, ...holeCards].includes(c))
+    
+    let isFlushDraw = false;
+    let isStraightDraw = false;
+    let gutterCard = '';
+    let isOESD = false;
+
+    for(let card of remainingCards) {
+      let handRank = Hand.solve([card, ...boardStr, ...holeCards], 'standard', false).name
+      if (handRank == "Flush" || handRank == "Straight Flush") {
+        isFlushDraw = true
+      }
+      if (handRank == "Straight" || handRank == "Straight Flush") {
+        if(!isStraightDraw){
+          gutterCard = card[0]
+          isStraightDraw = true
+        } else if (gutterCard != card[0]){
+          isOESD = true;
+        }
+      }
+      if(isFlushDraw && isOESD) break
+    }
+
+    if(Hand.solve([...boardStr, ...holeCards], 'standard', false).name == "Flush") {
+      isFlushDraw = false
+    }
+    if(Hand.solve([...boardStr, ...holeCards], 'standard', false).name == "Straight") {
+      isStraightDraw = false
+      isOESD = false
+    }
+      
+    if(isFlushDraw && isStraightDraw){ //Combo Draw
+      drawSummary[0][1].push(row)
+    }
+    else if(isFlushDraw && !isStraightDraw){ //Flush Draw
+      drawSummary[1][1].push(row)
+    }
+    else if(isOESD){ //OES Draw
+      drawSummary[2][1].push(row)
+    }
+    else if(isStraightDraw){ //Straight Draw
+      drawSummary[3][1].push(row)
+    }
+    else { //No Draw
+      drawSummary[4][1].push(row)
     }
   }
 
-  for (let i = INDEX_EQUITY; i < ret.length; ++i) {
-    ret[i] /= normalizer;
+  for(const draw of drawSummary){
+    if(draw[1].length == 0) continue
+
+    const drawResults = draw[1]
+
+    let normalizer = 0;
+    const ret = drawResults[0].map(() => 0);
+
+    for (const row of drawResults) {
+      const n = row[INDEX_NORMALIZER];
+      normalizer += n;
+      ret[INDEX_WEIGHT] += row[INDEX_WEIGHT];
+      for (let i = INDEX_EQUITY; i < row.length; ++i) {
+        ret[i] += row[i] * n;
+      }
+    }
+
+    for (let i = INDEX_EQUITY; i < ret.length; ++i) {
+      ret[i] /= normalizer;
+    }
+
+    draw[1] = ret
   }
 
-  // EQR is not the average
-  // const playerIndex = props.displayPlayer === "oop" ? 0 : 1;
-  // const eqrBase = props.results.eqrBase[playerIndex];
-  // ret[INDEX_EQR] = ret[INDEX_EV] / (eqrBase * ret[INDEX_EQUITY]);
-  // if (!isFinite(ret[INDEX_EQR])) ret[INDEX_EQR] = Number.NaN;
+  return drawSummary
+})
 
-  return ret;
-}
+// const getDrawSummary = (handName: String) => {
+
+//   // filter given the handName
+  
+//   let filterByHandName = (row: number[]) => {
+    
+//   }
+
+//   const handResults = results.filter(filterByHandName)
+//   // return []
+//   if (!props.results || handResults.length === 0) return [];
+
+//   let normalizer = 0;
+//   const ret = handResults[0].map(() => 0);
+
+//   for (const row of handResults) {
+//     const n = row[INDEX_NORMALIZER];
+//     normalizer += n;
+//     ret[INDEX_WEIGHT] += row[INDEX_WEIGHT];
+//     for (let i = INDEX_EQUITY; i < row.length; ++i) {
+//       ret[i] += row[i] * n;
+//     }
+//   }
+
+//   for (let i = INDEX_EQUITY; i < ret.length; ++i) {
+//     ret[i] /= normalizer;
+//   }
+
+//   // EQR is not the average
+//   // const playerIndex = props.displayPlayer === "oop" ? 0 : 1;
+//   // const eqrBase = props.results.eqrBase[playerIndex];
+//   // ret[INDEX_EQR] = ret[INDEX_EV] / (eqrBase * ret[INDEX_EQUITY]);
+//   // if (!isFinite(ret[INDEX_EQR])) ret[INDEX_EQR] = Number.NaN;
+
+//   return ret;
+// }
 
 const actionColors = computed(() => {
   if (numActions.value === 0) return [];
@@ -964,7 +1040,7 @@ const maxWeight = computed(() => {
   // const handSummariesArray = Array.from(handSummaries.value.values())
   // console.log(handSummariesArray)
 
-  const nonEmptySummary = handSummary.value.map(r=>r[1]).filter(r=>r.length != 0)
+  const nonEmptySummary = drawSummary.value.map(r=>r[1]).filter(r=>r.length != 0)
   return Math.max(...nonEmptySummary.map((r) => r[INDEX_WEIGHT]));
 });
 

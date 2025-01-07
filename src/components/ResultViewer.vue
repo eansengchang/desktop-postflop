@@ -71,16 +71,28 @@
             :display-player="displayPlayerBasics"
             :hover-content="basicsHoverContent"
           />
-          <FilterTable
-            style="flex: 3"
-            table-mode="basics"
-            :cards="cards"
-            :selected-spot="selectedSpot"
-            :results="results"
-            :display-player="displayPlayerBasics"
-            :hover-content="basicsHoverContent"
-            :current-board="currentBoard"
-          />
+          <div style="display: flex; flex-direction: row;">
+            <HandOverviewTable
+              style="flex: 3"
+              table-mode="basics"
+              :cards="cards"
+              :selected-spot="selectedSpot"
+              :results="results"
+              :display-player="displayPlayerBasics"
+              :hover-content="basicsHoverContent"
+              :current-board="currentBoard"
+            />
+            <DrawsOverviewTable
+              style="flex: 3"
+              table-mode="basics"
+              :cards="cards"
+              :selected-spot="selectedSpot"
+              :results="results"
+              :display-player="displayPlayerBasics"
+              :hover-content="basicsHoverContent"
+              :current-board="currentBoard"
+            />
+          </div>
         </div>
       </template>
 
@@ -165,10 +177,11 @@ import ResultNav from "./ResultNav.vue";
 import ResultMiddle from "./ResultMiddle.vue";
 import ResultBasics from "./ResultBasics.vue";
 import ResultTable from "./ResultTable.vue";
-import FilterTable from "./FilterTable.vue";
+import HandOverviewTable from "./HandOverviewTable.vue";
 import ResultCompare from "./ResultCompare.vue";
 import ResultGraphs from "./ResultGraphs.vue";
 import ResultChance from "./ResultChance.vue";
+import DrawsOverviewTable from "./DrawsOverviewTable.vue";
 
 const store = useStore();
 
